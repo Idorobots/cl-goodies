@@ -16,6 +16,6 @@ Example usage:
 :     print i
 : };
 
-* TODO Stuff possibly comming in the future:
+** Stuff possibly comming in the future:
 - *cl.format* - an implementation of Common Lisp' FORMAT macro.
 - *cl.html* - a bunch of classic convinience macros for outputting HTML.

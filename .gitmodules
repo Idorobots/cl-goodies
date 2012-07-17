@@ -1,0 +1,3 @@
+[submodule "libs/pegged"]
+	path = libs/pegged
+	url = git://github.com/PhilippeSigaud/Pegged.git
