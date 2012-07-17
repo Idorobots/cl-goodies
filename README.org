@@ -1,0 +1,23 @@
+* CL goodies
+My heretical fun with D's CTFE...
+
+Contains:
+
+** cl.loop
+An implementation of Common Lisp' [LOOP macro](http://www.gigamonkeys.com/book/loop-for-black-belts.html) using [Pegged](https://github.com/PhilippeSigaud/Pegged).
+Example usage:
+
+```d
+import std.stdio;
+import cl.loop;
+
+mixin Loop!q{
+    for i from 0 to 100
+    collect i
+    print i
+};
+````
+
+* TODO Stuff possibly comming in the future:
+** cl.format - an implementation of Common Lisp' FORMAT macro.
+** cl.html - a bunch of classic convinience macros for outputting HTML.

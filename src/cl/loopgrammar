@@ -1,0 +1,73 @@
+################################################################################
+# Loop grammar used by Pegged.
+#
+# TODO Special case "with foo as result"
+# TODO Add hex numbers to Number.
+# TODO Use range interfaces in For/In loop.
+# TODO Add type constraints to make the error messages more useful.
+# TODO Add AA support.
+# TODO Fix comments.
+# TODO Split Statement into Accumulator and Operator and add optional "into" clause.
+####################
+
+LoopCode   < Init* (Iterator+ Statement+)+ Finally?
+Init       < With
+Iterator   < (While / Repeat / For)
+Statement  < (If / Do / Return / Print / Collect / Count / Sum / Extremum)
+
+With       < :"with" Variable (:"=" / :"as") Expression
+
+While      < ("while" / "until") Expression
+
+Repeat     < :"repeat" Expression
+
+For        < :"for" Variable (In / From)
+In         < (:"in" / :"on" / :"across") (Variable / String)
+From       < :"from" Expression ("to" / "above" / "below") Expression
+
+If         < :"if" Expression Statement (:"and" Statement)* (:"else" Statement (:"and" Statement)* )? :"end"?
+When       < ("when" / "unless") Expression Statement (:"and" Statement)* :"end"?
+# If         < :"if" Expression Statement (:"else" Statement)?
+# When       < ("when" / "unless") Expression Statement
+
+Print      < (:"printing" / :"print") Expression
+Do         < (:"doing" / :"do") Expression
+Return     < (:"returning" / :"return") Expression
+
+Collect    < (:"collecting" / :"collect") Expression
+Count      < (:"counting" / :"count") Expression
+Sum        < (:"summing" / :"sum") Expression
+Extremum   < (("minimizing" / "minimize") / ("maximizing" / "maximize")) Expression
+
+Finally    < :"finally" Expression
+
+Expression < (Number / String / Variable / DCode)
+
+Number     <~ Floating ( ('e' / 'E') )?
+Floating   <~ Integer ('.' Unsigned)?
+Unsigned   <~ [0-9]+
+Integer    <~ Sign? Unsigned
+Sign       <- '-' / '+'
+
+String     <~ DoubleQuote (!DoubleQuote Char)* DoubleQuote
+Char       <~ BackSlash ( DoubleQuote
+                        / Quote
+                        / BackSlash
+                        / [bfnrt]
+                        / [0-2][0-7][0-7]
+                        / [0-7][0-7]?
+                        / 'x' Hex Hex
+                        / 'u' Hex Hex Hex Hex
+                        / 'U' Hex Hex Hex Hex Hex Hex Hex Hex
+                        )
+              / Anything
+Hex        <~ [0-9a-fA-F]
+
+Variable   <~ Identifier
+
+DCode      <~ :DEscape (!DEscape Anything)* :DEscape
+DEscape    < "$$"
+
+Anything     <~ .
+
+Comment      <~ Slash Slash (!'\n' Anything)* '\n'
