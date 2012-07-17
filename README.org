@@ -7,16 +7,14 @@ Contains:
 An implementation of Common Lisp' [[http://www.gigamonkeys.com/book/loop-for-black-belts.html][LOOP macro]] using [[https://github.com/PhilippeSigaud/Pegged][Pegged]].
 Example usage:
 
-#+begin_src d
-import std.stdio;
-import cl.loop;
-
-mixin Loop!q{
-    for i from 0 to 100
-    collect i
-    print i
-};
-#+end_src
+: import std.stdio;
+: import cl.loop;
+: 
+: mixin Loop!q{
+:     for i from 0 to 100
+:     collect i
+:     print i
+: };
 
 * TODO Stuff possibly comming in the future:
 - *cl.format* - an implementation of Common Lisp' FORMAT macro.
