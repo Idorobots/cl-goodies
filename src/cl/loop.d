@@ -18,7 +18,11 @@ else {
 
 string compile(string code) {
     // Parse the code with Pegged.
-    auto o = LoopCode.parse(code).parseTree;
+    auto parse = LoopCode.parse(code);
+
+    assert(parse.success, "The code fails to parse.");
+
+    auto o = parse.parseTree;
 
     // Used to make the code readable:
     dstring ind(uint depth) {
@@ -44,57 +48,6 @@ string compile(string code) {
     uint summing    = 0x04;             // For Sum.
     uint maximizing = 0x08;             // For Extremum.
     uint minimizing = 0x10;             // For Extremum.
-
-    // Simple satements that don't interfere with loop structure:
-    dstring compileSimpleStat(ref ParseTree decl) {
-        dstring value = strip(decl.capture[0]);
-
-        switch(decl.ruleName) {
-            case "If":      assert(0, "Nested If's not yet implemented.");
-            case "When":    assert(0, "Nested When's not yet implemented.");
-
-            case "Print":   return "writeln(" ~ value ~ ");\n";
-            case "Do":      return value ~ ";\n";
-            case "Return":  return "return " ~ value ~ ";\n";
-
-            case "Sum":
-                 if(accMask & ~summing) assert(0, "Incompatible kinds of Loop value accumulation.");
-                 if(!accMask) {
-                     accMask |= summing;
-                     loopPre ~= ind(1) ~ "typeof(" ~ value ~ ") __summing;\n";
-                 }
-
-                 return "__summing += " ~ value ~ ";\n";
-
-            case "Count":
-                 if(accMask & ~counting) assert(0, "Incompatible kinds of Loop value accumulation.");
-                 if(!accMask) {
-                     accMask |= counting;
-                     loopPre ~= ind(1) ~ "uint __counting;\n";
-                 }
-
-                 return "if(" ~ value ~ ") ++__counting;\n";
-
-            case "Extremum":
-                dstring type = value;
-                value = strip(decl.capture[1]);
-
-                // TODO
-
-                return "";
-
-            case "Collect":
-                 if(accMask & ~collecting) assert(0, "Incompatible kinds of Loop value accumulation.");
-                 if(!accMask) {
-                     accMask |= collecting;
-                     loopPre ~= ind(1) ~ "typeof(" ~ value ~ ")[] __collecting;\n";
-                 }
-
-                 return "__collecting ~= " ~ value ~ ";\n";
-
-            default: assert(0, "Unknown statement: " ~ to!string(decl.ruleName));
-        }
-    }
 
     // Compiles an initializer.
     void compileInit(ref ParseTree decl) {
@@ -164,33 +117,88 @@ string compile(string code) {
         }
     }
 
+    // Simple satements that don't interfere with loop structure:
+    dstring compileSimpleStat(ref ParseTree decl) {
+        dstring value = strip(decl.capture[0]);
+
+        switch(decl.ruleName) {
+            case "Print":
+                 dstring result = "writeln(" ~ value;
+                 foreach(e; decl.capture[1..$]) result ~= ", " ~ e;
+                 return result ~ ");\n";
+
+            case "Do":      return value ~ ";\n";
+            case "Return":  return "return " ~ value ~ ";\n";
+
+            case "Sum":
+                 if(accMask & ~summing) assert(0, "Incompatible kinds of Loop value accumulation.");
+                 if(!accMask) {
+                     accMask |= summing;
+                     loopPre ~= ind(1) ~ "typeof(" ~ value ~ ") __summing;\n";
+                 }
+
+                 return "__summing += " ~ value ~ ";\n";
+
+            case "Count":
+                 if(accMask & ~counting) assert(0, "Incompatible kinds of Loop value accumulation.");
+                 if(!accMask) {
+                     accMask |= counting;
+                     loopPre ~= ind(1) ~ "uint __counting;\n";
+                 }
+
+                 return "if(" ~ value ~ ") ++__counting;\n";
+
+            case "Extremum":
+                dstring type = value;
+                value = strip(decl.capture[1]);
+
+                // TODO
+
+                return "";
+
+            case "Collect":
+                 if(accMask & ~collecting) assert(0, "Incompatible kinds of Loop value accumulation.");
+                 if(!accMask) {
+                     accMask |= collecting;
+                     loopPre ~= ind(1) ~ "typeof(" ~ value ~ ")[] __collecting;\n";
+                 }
+
+                 return "__collecting ~= " ~ value ~ ";\n";
+
+            default: assert(0, "Unknown statement: " ~ to!string(decl.ruleName));
+        }
+    }
+
     // Compiles statements.
     void compileStatement(ref ParseTree decl) {
         switch(decl.ruleName) {
             case "When":
                  dstring op = decl.capture[0] == "unless" ? "!" : "";
                  dstring condition = strip(decl.capture[1]);
-                 auto stat = decl.children[1].children[0]; //Always Statement.
+                 auto stat = decl.children[1];
 
                  loopBody ~= ind(2) ~ "if(" ~ op ~ "(" ~ condition ~ ")) {\n";
-                 loopBody ~= ind(3) ~ compileSimpleStat(stat);
+                 //loopBody ~= ind(3) ~ compileSimpleStat(stat);
+                 compileStatement(stat);
                  loopBody ~= ind(2) ~ "}\n";
             break;
 
             case "If":
                  dstring condition = strip(decl.capture[0]);
-                 auto then = decl.children[1].children[0]; //Always Statement.
+                 auto then = decl.children[1];
+
+                 loopBody ~= ind(2) ~ "if(" ~ condition ~ ") {\n";
+                 //loopBody ~= ind(3) ~ compileSimpleStat(then);
+                 compileStatement(then);
+                 loopBody ~= ind(2) ~ "}\n";
 
                  bool hasElse = decl.children.length == 3;
 
-                 loopBody ~= ind(2) ~ "if(" ~ condition ~ ") {\n";
-                 loopBody ~= ind(3) ~ compileSimpleStat(then);
-                 loopBody ~= ind(2) ~ "}\n";
-
                  if(hasElse) {
-                     auto els = decl.children[2].children[0]; //Always statement.
+                     auto els = decl.children[2];
                      loopBody ~= ind(2) ~ "else {\n";
-                     loopBody ~= ind(3) ~ compileSimpleStat(els);
+                     //loopBody ~= ind(3) ~ compileSimpleStat(els);
+                     compileStatement(els);
                      loopBody ~= ind(2) ~ "}\n";
                  }
             break;
@@ -204,11 +212,17 @@ string compile(string code) {
             case "Extremum":
                  loopBody ~= ind(2) ~ compileSimpleStat(decl);
             break;
+            case "Statement":
+                 compileStatement(decl.children[0]);
+
+                 if(decl.children.length != 1)
+                     compileStatement(decl.children[1]);
+            break;
             default: assert(0, "Unknown statement: " ~ to!string(decl.ruleName));
         }
     }
 
-    // Code generation goes here:
+    // Code generation starts here:
     foreach(ref decl; o.children) {
         switch(decl.ruleName) {
             case "Init":      compileInit(decl.children[0]); break;

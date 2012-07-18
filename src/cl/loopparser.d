@@ -169,7 +169,7 @@ class Iterator : Or!(While,Repeat,For)
     
 }
 
-class Statement : Or!(If,Do,Return,Print,Collect,Count,Sum,Extremum)
+class Statement : SpaceSeq!(Or!(If,When,Do,Return,Print,Collect,Count,Sum,Extremum),ZeroOrMore!(SpaceSeq!(Drop!(Lit!("and")),Statement)))
 {
     enum grammarName = `LoopCode`;
     enum ruleName = `Statement`;
@@ -449,7 +449,7 @@ class From : SpaceSeq!(Drop!(Lit!("from")),Expression,Or!(Lit!("to"),Lit!("above
     
 }
 
-class If : SpaceSeq!(Drop!(Lit!("if")),Expression,Statement,ZeroOrMore!(SpaceSeq!(Drop!(Lit!("and")),Statement)),Option!(SpaceSeq!(Drop!(Lit!("else")),Statement,ZeroOrMore!(SpaceSeq!(Drop!(Lit!("and")),Statement)))),Drop!(Option!(Lit!("end"))))
+class If : SpaceSeq!(Drop!(Lit!("if")),Expression,Statement,Option!(SpaceSeq!(Drop!(Lit!("else")),Statement)),Drop!(Option!(Lit!("end"))))
 {
     enum grammarName = `LoopCode`;
     enum ruleName = `If`;
@@ -489,7 +489,7 @@ class If : SpaceSeq!(Drop!(Lit!("if")),Expression,Statement,ZeroOrMore!(SpaceSeq
     
 }
 
-class When : SpaceSeq!(Or!(Lit!("when"),Lit!("unless")),Expression,Statement,ZeroOrMore!(SpaceSeq!(Drop!(Lit!("and")),Statement)),Drop!(Option!(Lit!("end"))))
+class When : SpaceSeq!(Or!(Lit!("when"),Lit!("unless")),Expression,Statement,Drop!(Option!(Lit!("end"))))
 {
     enum grammarName = `LoopCode`;
     enum ruleName = `When`;
@@ -529,7 +529,7 @@ class When : SpaceSeq!(Or!(Lit!("when"),Lit!("unless")),Expression,Statement,Zer
     
 }
 
-class Print : SpaceSeq!(Or!(Drop!(Lit!("printing")),Drop!(Lit!("print"))),Expression)
+class Print : SpaceSeq!(Or!(Drop!(Lit!("printing")),Drop!(Lit!("print"))),Expression,ZeroOrMore!(SpaceSeq!(Drop!(Lit!(",")),Expression)))
 {
     enum grammarName = `LoopCode`;
     enum ruleName = `Print`;
@@ -649,7 +649,7 @@ class Return : SpaceSeq!(Or!(Drop!(Lit!("returning")),Drop!(Lit!("return"))),Exp
     
 }
 
-class Collect : SpaceSeq!(Or!(Drop!(Lit!("collecting")),Drop!(Lit!("collect"))),Expression)
+class Collect : SpaceSeq!(Or!(Drop!(Lit!("collecting")),Drop!(Lit!("collect"))),Expression,Option!(SpaceSeq!(Drop!(Lit!("into")),Variable)))
 {
     enum grammarName = `LoopCode`;
     enum ruleName = `Collect`;
@@ -689,7 +689,7 @@ class Collect : SpaceSeq!(Or!(Drop!(Lit!("collecting")),Drop!(Lit!("collect"))),
     
 }
 
-class Count : SpaceSeq!(Or!(Drop!(Lit!("counting")),Drop!(Lit!("count"))),Expression)
+class Count : SpaceSeq!(Or!(Drop!(Lit!("counting")),Drop!(Lit!("count"))),Expression,Option!(SpaceSeq!(Drop!(Lit!("into")),Variable)))
 {
     enum grammarName = `LoopCode`;
     enum ruleName = `Count`;
@@ -729,7 +729,7 @@ class Count : SpaceSeq!(Or!(Drop!(Lit!("counting")),Drop!(Lit!("count"))),Expres
     
 }
 
-class Sum : SpaceSeq!(Or!(Drop!(Lit!("summing")),Drop!(Lit!("sum"))),Expression)
+class Sum : SpaceSeq!(Or!(Drop!(Lit!("summing")),Drop!(Lit!("sum"))),Expression,Option!(SpaceSeq!(Drop!(Lit!("into")),Variable)))
 {
     enum grammarName = `LoopCode`;
     enum ruleName = `Sum`;
@@ -769,7 +769,7 @@ class Sum : SpaceSeq!(Or!(Drop!(Lit!("summing")),Drop!(Lit!("sum"))),Expression)
     
 }
 
-class Extremum : SpaceSeq!(Or!(Or!(Lit!("minimizing"),Lit!("minimize")),Or!(Lit!("maximizing"),Lit!("maximize"))),Expression)
+class Extremum : SpaceSeq!(Or!(Or!(Lit!("minimizing"),Lit!("minimize")),Or!(Lit!("maximizing"),Lit!("maximize"))),Expression,Option!(SpaceSeq!(Drop!(Lit!("into")),Variable)))
 {
     enum grammarName = `LoopCode`;
     enum ruleName = `Extremum`;

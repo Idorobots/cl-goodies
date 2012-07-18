@@ -1,14 +1,14 @@
 CC = dmd
-DFLAGS = -Jsrc/cl -Isrc -Ilibs/pegged
+DFLAGS = -Isrc -Ilibs/pegged
+CTDFLAGS = -Jsrc/cl -version=CompileTime $(DFLAGS)
 LDLIBS = -L-Llibs/pegged -L-lpegged
 
 VPATH = src:src/cl
 
-TARGET = loop
+CTOBJS = loop.d examples.d
+OBJS = loopparser.o $(CTOBJS)
 
-OBJS = loopparser.o loop.o examples.o
-
-all: pegged parser $(TARGET)
+all: pegged parser loop
 
 pegged:
 	$(MAKE) -C libs/pegged
@@ -16,13 +16,16 @@ pegged:
 parser:
 	libs/pegged/peggeden src/cl/loopgrammar src/cl/loopparser.d
 
-$(TARGET): $(OBJS)
-	$(CC) $^ $(LDLIBS) -of$@
+loop: $(OBJS)
+	$(CC) $(DFLAGS) $^ $(LDLIBS) -of$@
 
-%.o : %.d
-	$(CC) $(DFLAGS) $^ -c
+loop-ct: $(CTOBJS)
+	$(CC) $(CTDFLAGS) $^ $(LDLIBS) -of$@
+
+%.o: %.d
+	$(CC) $(DFLAGS) $^ $(LDLIBS) -c
 
 clean:
-	rm -f $(OBJS)
-	rm -f $(TARGET)
-
+	rm -f *.o
+	rm -f loop
+	$(MAKE) -C libs/pegged clean

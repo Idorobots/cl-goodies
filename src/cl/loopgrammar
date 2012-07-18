@@ -13,7 +13,7 @@
 LoopCode   < Init* (Iterator+ Statement+)+ Finally?
 Init       < With
 Iterator   < (While / Repeat / For)
-Statement  < (If / Do / Return / Print / Collect / Count / Sum / Extremum)
+Statement  < (If / When / Do / Return / Print / Collect / Count / Sum / Extremum) (:"and" Statement)*
 
 With       < :"with" Variable (:"=" / :"as") Expression
 
@@ -25,19 +25,17 @@ For        < :"for" Variable (In / From)
 In         < (:"in" / :"on" / :"across") (Variable / String)
 From       < :"from" Expression ("to" / "above" / "below") Expression
 
-If         < :"if" Expression Statement (:"and" Statement)* (:"else" Statement (:"and" Statement)* )? :"end"?
-When       < ("when" / "unless") Expression Statement (:"and" Statement)* :"end"?
-# If         < :"if" Expression Statement (:"else" Statement)?
-# When       < ("when" / "unless") Expression Statement
+If         < :"if" Expression Statement (:"else" Statement  )? :"end"?
+When       < ("when" / "unless") Expression Statement :"end"?
 
-Print      < (:"printing" / :"print") Expression
+Print      < (:"printing" / :"print") Expression (:',' Expression)*
 Do         < (:"doing" / :"do") Expression
 Return     < (:"returning" / :"return") Expression
 
-Collect    < (:"collecting" / :"collect") Expression
-Count      < (:"counting" / :"count") Expression
-Sum        < (:"summing" / :"sum") Expression
-Extremum   < (("minimizing" / "minimize") / ("maximizing" / "maximize")) Expression
+Collect    < (:"collecting" / :"collect") Expression (:"into" Variable)?
+Count      < (:"counting" / :"count") Expression (:"into" Variable)?
+Sum        < (:"summing" / :"sum") Expression (:"into" Variable)?
+Extremum   < (("minimizing" / "minimize") / ("maximizing" / "maximize")) Expression (:"into" Variable)?
 
 Finally    < :"finally" Expression
 
