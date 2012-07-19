@@ -169,7 +169,7 @@ class Iterator : Or!(While,Repeat,For)
     
 }
 
-class Statement : SpaceSeq!(Or!(If,When,Do,Return,Print,Collect,Count,Sum,Extremum),ZeroOrMore!(SpaceSeq!(Drop!(Lit!("and")),Statement)))
+class Statement : SpaceSeq!(Or!(If,When,Do,Return,Print,Collect,Count,Sum,Min,Max),ZeroOrMore!(SpaceSeq!(Drop!(Lit!("and")),Statement)))
 {
     enum grammarName = `LoopCode`;
     enum ruleName = `Statement`;
@@ -329,7 +329,7 @@ class Repeat : SpaceSeq!(Drop!(Lit!("repeat")),Expression)
     
 }
 
-class For : SpaceSeq!(Drop!(Lit!("for")),Variable,Or!(In,From))
+class For : SpaceSeq!(Drop!(Lit!("for")),Variable,Or!(In,From,Being))
 {
     enum grammarName = `LoopCode`;
     enum ruleName = `For`;
@@ -413,6 +413,46 @@ class From : SpaceSeq!(Drop!(Lit!("from")),Expression,Or!(Lit!("to"),Lit!("above
 {
     enum grammarName = `LoopCode`;
     enum ruleName = `From`;
+
+    static Output parse(ParseLevel pl = ParseLevel.parsing)(Input input)
+    {
+        mixin(okfailMixin());
+        
+        auto p = typeof(super).parse!(pl)(input);
+        static if (pl == ParseLevel.validating)
+            p.capture = null;
+        static if (pl <= ParseLevel.matching)
+            p.children = null;
+        static if (pl >= ParseLevel.parsing)
+        {
+            if (p.success)
+            {                                
+                static if (pl == ParseLevel.parsing)
+                    p.parseTree = decimateTree(p.parseTree);
+                
+                if (p.grammarName == grammarName || pl >= ParseLevel.noDecimation)
+                {
+                    p.children = [p];
+                }
+                
+                p.grammarName = grammarName;
+                p.ruleName = ruleName;
+            }
+            else
+                return fail(p.parseTree.end,
+                            (grammarName~`.`~ruleName ~ ` failure at pos `d ~ to!dstring(p.parseTree.end) ~ (p.capture.length > 0 ? p.capture[1..$] : p.capture)));
+        }
+                
+        return p;
+    }    
+    mixin(stringToInputMixin());
+    
+}
+
+class Being : SpaceSeq!(Drop!(Lit!("being")),Drop!(Option!(Lit!("the"))),Expression,Drop!(Lit!("of")),Expression)
+{
+    enum grammarName = `LoopCode`;
+    enum ruleName = `Being`;
 
     static Output parse(ParseLevel pl = ParseLevel.parsing)(Input input)
     {
@@ -769,10 +809,50 @@ class Sum : SpaceSeq!(Or!(Drop!(Lit!("summing")),Drop!(Lit!("sum"))),Expression,
     
 }
 
-class Extremum : SpaceSeq!(Or!(Or!(Lit!("minimizing"),Lit!("minimize")),Or!(Lit!("maximizing"),Lit!("maximize"))),Expression,Option!(SpaceSeq!(Drop!(Lit!("into")),Variable)))
+class Min : SpaceSeq!(Or!(Drop!(Lit!("minimizing")),Drop!(Lit!("minimize"))),Expression,Option!(SpaceSeq!(Drop!(Lit!("into")),Variable)))
 {
     enum grammarName = `LoopCode`;
-    enum ruleName = `Extremum`;
+    enum ruleName = `Min`;
+
+    static Output parse(ParseLevel pl = ParseLevel.parsing)(Input input)
+    {
+        mixin(okfailMixin());
+        
+        auto p = typeof(super).parse!(pl)(input);
+        static if (pl == ParseLevel.validating)
+            p.capture = null;
+        static if (pl <= ParseLevel.matching)
+            p.children = null;
+        static if (pl >= ParseLevel.parsing)
+        {
+            if (p.success)
+            {                                
+                static if (pl == ParseLevel.parsing)
+                    p.parseTree = decimateTree(p.parseTree);
+                
+                if (p.grammarName == grammarName || pl >= ParseLevel.noDecimation)
+                {
+                    p.children = [p];
+                }
+                
+                p.grammarName = grammarName;
+                p.ruleName = ruleName;
+            }
+            else
+                return fail(p.parseTree.end,
+                            (grammarName~`.`~ruleName ~ ` failure at pos `d ~ to!dstring(p.parseTree.end) ~ (p.capture.length > 0 ? p.capture[1..$] : p.capture)));
+        }
+                
+        return p;
+    }    
+    mixin(stringToInputMixin());
+    
+}
+
+class Max : SpaceSeq!(Or!(Drop!(Lit!("maximizing")),Lit!(":maximize")),Expression,Option!(SpaceSeq!(Drop!(Lit!("into")),Variable)))
+{
+    enum grammarName = `LoopCode`;
+    enum ruleName = `Max`;
 
     static Output parse(ParseLevel pl = ParseLevel.parsing)(Input input)
     {
@@ -969,7 +1049,7 @@ class Floating : Fuse!(Seq!(Integer,Option!(Seq!(Lit!("."),Unsigned))))
     
 }
 
-class Unsigned : Fuse!(OneOrMore!(Range!('0','9')))
+class Unsigned : Fuse!(Or!(OneOrMore!(Range!('0','9')),Seq!(Lit!("0x"),OneOrMore!(Or!(Range!('0','9'),Range!('a','f'),Range!('A','F'))))))
 {
     enum grammarName = `LoopCode`;
     enum ruleName = `Unsigned`;

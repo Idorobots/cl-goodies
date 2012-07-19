@@ -15,6 +15,18 @@ void main(string[] args) {
         end
     };
 
+    auto aa = ["foo" : "bar", "bar" : "foo"];
+
+    writeln("Iterating a hash:");
+    mixin Loop!q{
+        with aas as result
+        for k being the keys of aa
+        for v being the values of aa
+        collect k
+        collect v
+    };
+    writeln(aas);
+
     writeln("Print and count:");
     mixin Loop!q{
         with ifs as result
@@ -30,7 +42,7 @@ void main(string[] args) {
     writeln(ifs);
 
     writeln("Nested stuff:");
-    mixin Loop!q{
+    mixin Loop!(q{
         with res as result
         for i from 0 to 10
             when $$ i & 1 $$
@@ -45,13 +57,13 @@ void main(string[] args) {
                        end
                 else
                     collect 5
-    };
+    }, true);
     writeln(res);
 
     writeln("Nested loops:");
     mixin Loop!q{
         with loops as result
-        with size = 10
+        with size = 3
         for x from 0 to size do $$
         mixin Loop!q{
                for y from 0 to size

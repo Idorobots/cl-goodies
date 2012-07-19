@@ -5,7 +5,7 @@
 LoopCode   < Init* (Iterator+ Statement+)+ Finally?
 Init       < With
 Iterator   < (While / Repeat / For)
-Statement  < (If / When / Do / Return / Print / Collect / Count / Sum / Extremum) (:"and" Statement)*
+Statement  < (If / When / Do / Return / Print / Collect / Count / Sum / Min / Max) (:"and" Statement)*
 
 With       < :"with" Variable (:"=" / :"as") Expression
 
@@ -13,9 +13,10 @@ While      < ("while" / "until") Expression
 
 Repeat     < :"repeat" Expression
 
-For        < :"for" Variable (In / From)
+For        < :"for" Variable (In / From / Being)
 In         < (:"in" / :"on" / :"across") (Variable / String)
 From       < :"from" Expression ("to" / "above" / "below") Expression
+Being      < :"being" :"the"? Expression :"of" Expression
 
 If         < :"if" Expression Statement (:"else" Statement )? :"end"?
 When       < ("when" / "unless") Expression Statement :"end"?
@@ -27,7 +28,8 @@ Return     < (:"returning" / :"return") Expression
 Collect    < (:"collecting" / :"collect") Expression (:"into" Variable)?
 Count      < (:"counting" / :"count") Expression (:"into" Variable)?
 Sum        < (:"summing" / :"sum") Expression (:"into" Variable)?
-Extremum   < (("minimizing" / "minimize") / ("maximizing" / "maximize")) Expression (:"into" Variable)?
+Min        < (:"minimizing" / :"minimize") Expression (:"into" Variable)?
+Max        < (:"maximizing" / ":maximize") Expression (:"into" Variable)?
 
 Finally    < :"finally" Expression
 
@@ -35,7 +37,7 @@ Expression < (Number / String / Variable / DCode)
 
 Number     <~ Floating ( ('e' / 'E') )?
 Floating   <~ Integer ('.' Unsigned)?
-Unsigned   <~ [0-9]+
+Unsigned   <~ [0-9]+ / "0x" [0-9a-fA-F]+
 Integer    <~ Sign? Unsigned
 Sign       <- '-' / '+'
 
