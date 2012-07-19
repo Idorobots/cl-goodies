@@ -14,6 +14,14 @@ else {
 
 /*******************************************************************************
  * Compiles loop code into valid D code.
+ *
+ * TODO Special case "with foo as result"
+ * TODO Add hex numbers to Number.
+ * TODO Use range interfaces in For/In loop.
+ * TODO Add type constraints to make the error messages more useful.
+ * TODO Add AA support.
+ * TODO Fix comments.
+ * TODO Split Statement into Accumulator and Operator and add optional "into" clause.
  ******************/
 
 string compile(string code) {
@@ -21,8 +29,13 @@ string compile(string code) {
     auto parse = LoopCode.parse(code);
 
     assert(parse.success, "The code fails to parse.");
-
     auto o = parse.parseTree;
+
+    // Generates a unique identifier:
+    //uint __gensym = 0;
+    dstring gensym(dstring base = "gensym") {
+        return "__" ~ base ~ "_" ~ to!dstring(Dummy.getInstance().gensym++);
+    }
 
     // Used to make the code readable:
     dstring ind(uint depth) {
@@ -39,8 +52,6 @@ string compile(string code) {
     dstring loopBody = "";              // Working loop body.
     dstring loopFooter = "";            // Footer of the loop body.
     dstring loopPost = "";              // Anything that happens after the loop.
-
-    uint gensym = 0;                    // Used for unique variables.
 
     uint accMask = 0;                   // Used for the accumulators.
     uint collecting = 0x01;             // For Collect.
@@ -74,10 +85,11 @@ string compile(string code) {
 
             case "Repeat":
                  dstring times = strip(decl.capture[0]);
-                 dstring sym = to!dstring(gensym++);
-                 loopPre    ~= ind(1) ~ "auto __repeat_" ~ sym ~ " = " ~ times ~ ";\n";
-                 loopHeader ~= ind(2) ~ "if(__repeat_" ~ sym ~ " <= 0) break;\n";
-                 loopFooter ~= ind(2) ~ "--__repeat_" ~ sym ~ ";\n";
+                 dstring sym = gensym("repeat");
+
+                 loopPre    ~= ind(1) ~ "auto " ~ sym ~ " = " ~ times ~ ";\n";
+                 loopHeader ~= ind(2) ~ "if(" ~ sym ~ " <= 0) break;\n";
+                 loopFooter ~= ind(2) ~ "--" ~ sym ~ ";\n";
             break;
 
             case "For":
@@ -86,16 +98,19 @@ string compile(string code) {
 
                  switch(forVariant.ruleName) {
                      case "In":
-                          dstring range = strip(forVariant.capture[0]);
+                          dstring r = strip(forVariant.capture[0]);
+                          dstring index = gensym(var);
+                          dstring max = gensym(var);
+                          dstring range = gensym(var);
 
-                          loopPre    ~= ind(1) ~ "auto __" ~ var ~ "_index = 0;\n";
-                          loopPre    ~= ind(1) ~ "auto __" ~ var ~ "_range = " ~ range ~ ";\n";
-                          loopPre    ~= ind(1) ~ "auto __" ~ var ~ "_max = __" ~ var ~"_range.length;\n";
+                          loopPre    ~= ind(1) ~ "auto " ~ index ~ " = 0;\n";
+                          loopPre    ~= ind(1) ~ "auto " ~ range ~ " = " ~ r ~ ";\n";
+                          loopPre    ~= ind(1) ~ "auto " ~ max ~ " = " ~ range ~".length;\n";
 
-                          loopPre    ~= ind(1) ~ "typeof(__" ~ var ~ "_range.init[0]) " ~ var ~ ";\n";
-                          loopHeader ~= ind(2) ~ "if(__" ~ var ~ "_index >= __" ~ var ~ "_max) break;\n";
-                          loopHeader ~= ind(2) ~ var ~ " = __" ~ var ~ "_range[__" ~ var ~ "_index];\n";
-                          loopFooter ~= ind(2) ~ "++__" ~ var ~ "_index;\n";
+                          loopPre    ~= ind(1) ~ "typeof(" ~ range ~ ".init[0]) " ~ var ~ ";\n";
+                          loopHeader ~= ind(2) ~ "if(" ~ index ~ " >= " ~ max ~ ") break;\n";
+                          loopHeader ~= ind(2) ~ var ~ " = " ~ range ~ "[" ~ index ~ "];\n";
+                          loopFooter ~= ind(2) ~ "++" ~ index ~ ";\n";
                      break;
 
                      case "From":
@@ -118,18 +133,25 @@ string compile(string code) {
     }
 
     // Simple satements that don't interfere with loop structure:
-    dstring compileSimpleStat(ref ParseTree decl) {
+    dstring compileSimpleStat(ref ParseTree decl, uint depth = 0) {
         dstring value = strip(decl.capture[0]);
 
         switch(decl.ruleName) {
             case "Print":
                  dstring result = "writeln(" ~ value;
                  foreach(e; decl.capture[1..$]) result ~= ", " ~ e;
-                 return result ~ ");\n";
+            return result ~ ");\n";
 
             case "Do":      return value ~ ";\n";
             case "Return":  return "return " ~ value ~ ";\n";
+            default:        assert(0, "Unknown statement: " ~ to!string(decl.ruleName));
+        }
+    }
+    // Compiles Accumulator statements:
+    void compileAccumulator(ref ParseTree decl, uint depth = 0) {
+        dstring value = strip(decl.capture[0]);
 
+        switch(decl.ruleName) {
             case "Sum":
                  if(accMask & ~summing) assert(0, "Incompatible kinds of Loop value accumulation.");
                  if(!accMask) {
@@ -137,7 +159,8 @@ string compile(string code) {
                      loopPre ~= ind(1) ~ "typeof(" ~ value ~ ") __summing;\n";
                  }
 
-                 return "__summing += " ~ value ~ ";\n";
+                 loopBody ~= ind(depth) ~ "__summing += " ~ value ~ ";\n";
+            break;
 
             case "Count":
                  if(accMask & ~counting) assert(0, "Incompatible kinds of Loop value accumulation.");
@@ -146,7 +169,8 @@ string compile(string code) {
                      loopPre ~= ind(1) ~ "uint __counting;\n";
                  }
 
-                 return "if(" ~ value ~ ") ++__counting;\n";
+                 loopBody ~= ind(depth) ~ "if(" ~ value ~ ") ++__counting;\n";
+            break;
 
             case "Extremum":
                 dstring type = value;
@@ -154,7 +178,8 @@ string compile(string code) {
 
                 // TODO
 
-                return "";
+                loopBody ~= "Nope.";
+            break;
 
             case "Collect":
                  if(accMask & ~collecting) assert(0, "Incompatible kinds of Loop value accumulation.");
@@ -163,60 +188,61 @@ string compile(string code) {
                      loopPre ~= ind(1) ~ "typeof(" ~ value ~ ")[] __collecting;\n";
                  }
 
-                 return "__collecting ~= " ~ value ~ ";\n";
-
-            default: assert(0, "Unknown statement: " ~ to!string(decl.ruleName));
+                 loopBody ~= ind(depth) ~ "__collecting ~= " ~ value ~ ";\n";
+            break;
+            default: assert(0, "Unknown accumulator: " ~ to!string(decl.ruleName));
         }
     }
 
     // Compiles statements.
-    void compileStatement(ref ParseTree decl) {
+    void compileStatement(ref ParseTree decl, uint depth = 0) {
         switch(decl.ruleName) {
             case "When":
                  dstring op = decl.capture[0] == "unless" ? "!" : "";
                  dstring condition = strip(decl.capture[1]);
                  auto stat = decl.children[1];
 
-                 loopBody ~= ind(2) ~ "if(" ~ op ~ "(" ~ condition ~ ")) {\n";
-                 //loopBody ~= ind(3) ~ compileSimpleStat(stat);
-                 compileStatement(stat);
-                 loopBody ~= ind(2) ~ "}\n";
+                 loopBody ~= ind(depth) ~ "if(" ~ op ~ "(" ~ condition ~ ")) {\n";
+                 compileStatement(stat, depth+1);
+                 loopBody ~= ind(depth) ~ "}\n";
             break;
 
             case "If":
                  dstring condition = strip(decl.capture[0]);
                  auto then = decl.children[1];
 
-                 loopBody ~= ind(2) ~ "if(" ~ condition ~ ") {\n";
-                 //loopBody ~= ind(3) ~ compileSimpleStat(then);
-                 compileStatement(then);
-                 loopBody ~= ind(2) ~ "}\n";
+                 loopBody ~= ind(depth) ~ "if(" ~ condition ~ ") {\n";
+                 compileStatement(then, depth+1);
+                 loopBody ~= ind(depth) ~ "}\n";
 
                  bool hasElse = decl.children.length == 3;
 
                  if(hasElse) {
                      auto els = decl.children[2];
-                     loopBody ~= ind(2) ~ "else {\n";
-                     //loopBody ~= ind(3) ~ compileSimpleStat(els);
-                     compileStatement(els);
-                     loopBody ~= ind(2) ~ "}\n";
+                     loopBody ~= ind(depth) ~ "else {\n";
+                     compileStatement(els, depth+1);
+                     loopBody ~= ind(depth) ~ "}\n";
                  }
             break;
 
             case "Print":
             case "Do":
             case "Return":
+                 loopBody ~= ind(depth) ~ compileSimpleStat(decl, depth);
+            break;
+
             case "Collect":
             case "Count":
             case "Sum":
             case "Extremum":
-                 loopBody ~= ind(2) ~ compileSimpleStat(decl);
+                 compileAccumulator(decl, depth);
             break;
+
             case "Statement":
-                 compileStatement(decl.children[0]);
+                 compileStatement(decl.children[0], depth);
 
                  if(decl.children.length != 1)
-                     compileStatement(decl.children[1]);
+                     compileStatement(decl.children[1], depth);
             break;
             default: assert(0, "Unknown statement: " ~ to!string(decl.ruleName));
         }
@@ -227,7 +253,7 @@ string compile(string code) {
         switch(decl.ruleName) {
             case "Init":      compileInit(decl.children[0]); break;
             case "Iterator":  compileIterator(decl.children[0]); break;
-            case "Statement": compileStatement(decl.children[0]); break;
+            case "Statement": compileStatement(decl.children[0], 2); break;
             case "Finally":   loopPost ~= ind(1) ~ strip(decl.capture[0]) ~ ";\n"; break;
             case "Comment":   break; // Nothing to compile.
             default:          assert(0, "Unrecognized Loop statement: " ~ to!string(decl.ruleName));

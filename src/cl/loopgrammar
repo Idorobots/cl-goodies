@@ -1,13 +1,5 @@
 ################################################################################
 # Loop grammar used by Pegged.
-#
-# TODO Special case "with foo as result"
-# TODO Add hex numbers to Number.
-# TODO Use range interfaces in For/In loop.
-# TODO Add type constraints to make the error messages more useful.
-# TODO Add AA support.
-# TODO Fix comments.
-# TODO Split Statement into Accumulator and Operator and add optional "into" clause.
 ####################
 
 LoopCode   < Init* (Iterator+ Statement+)+ Finally?
@@ -25,7 +17,7 @@ For        < :"for" Variable (In / From)
 In         < (:"in" / :"on" / :"across") (Variable / String)
 From       < :"from" Expression ("to" / "above" / "below") Expression
 
-If         < :"if" Expression Statement (:"else" Statement  )? :"end"?
+If         < :"if" Expression Statement (:"else" Statement )? :"end"?
 When       < ("when" / "unless") Expression Statement :"end"?
 
 Print      < (:"printing" / :"print") Expression (:',' Expression)*

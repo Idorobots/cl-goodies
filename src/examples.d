@@ -11,7 +11,8 @@ void main(string[] args) {
     writeln("Iterate args:");
     mixin Loop!q{
         for arg in args
-        print "Hello ", arg, "!"
+           print "Hello ", arg, "!"
+        end
     };
 
     writeln("Print and count:");
@@ -19,9 +20,12 @@ void main(string[] args) {
         with ifs as result
         for i from 0 to 20
         if $$ i % 2 == 0 $$
-           print i and
-           count i
-        end
+            print i and
+            count i
+        else if $$ i % 3 == 0 $$
+            count i
+        else
+            print "Not %2 nor %3: ", i
     };
     writeln(ifs);
 
@@ -35,19 +39,34 @@ void main(string[] args) {
                 collect i and
                 if $$ i % 3 == 0 $$
                     collect 3 and
-                    collect 3
+                    when $$i > 3 $$
+                       if true
+                          collect 3
+                       end
                 else
                     collect 5
     };
     writeln(res);
+
+    writeln("Nested loops:");
+    mixin Loop!q{
+        with loops as result
+        with size = 10
+        for x from 0 to size do $$
+        mixin Loop!q{
+               for y from 0 to size
+               print "x: ", x, " y: ", y
+        } $$
+    };
+    writeln(loops);
 
     writeln("Multiple counts:");
     auto max = 23;
     mixin Loop!q{
         with counts as result
         for i from 0 to max
-        count $$ i % 3 == 0 $$
-        count $$ i % 5 == 0 $$
+            count $$ i % 3 == 0 $$
+            count $$ i % 5 == 0 $$
     };
     writeln(counts);
 
