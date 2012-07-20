@@ -1,5 +1,8 @@
 ################################################################################
 # Loop grammar used by Pegged.
+#
+# TODO Add optional (:"finding" Expression) clause to the accumulators.
+# TODO Move ThereIs, Never and Always to a separate category and add optional (:"into" Variable) clause.
 ####################
 
 LoopCode    < Initially* Init* (Iterator+ Statement+)+ Finally*

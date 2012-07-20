@@ -96,34 +96,55 @@ void main(string[] args) {
         finally $$ writeln("Stats: ", [min, max, total, evens, odds]) $$
     });
 
-    writeln("Loop test:");
     auto result = mixin(Loope!q{
-        with evenp = $$ (uint x) => ((x&1) == 0) $$
-        with updateAnalysis = $$ (uint[] stats) {
+        initially $$ writeln("Loop test:"); $$
+
+        with isEven = $$ (uint x) => ((x&1) == 0) $$
+        with updateAnalysis = $$ // A D function analysing our data.
+                                 (uint[] stats) {
                                    static count = 0;
                                    if(count++ % 10 == 0)
                                        writeln("Analysis: ", stats);
-                              } $$
+                                 } $$
 
-        for i from 1 to 500
-          if $$ evenp(i) $$
+        with max = 500
+        with data = $$ // Yo dawg...
+                      mixin(Loope!q{
+                          for i from 0.0 to max by 1.337
+                            collect i
+                      }); $$
+
+        for i from 0 to max
+        for datum in data
+        for r in $$ sort(random) $$
+
+          if $$ isEven(i) $$
             minimize i into minEven and
             maximize i into maxEven and
             unless $$ i % 4 == 0 $$
-              sum i into evenNotFoursTotal
+              sum i into evenNotFoursTotal and
+              collect datum into floats
             end
             and sum i into evenTotal
           else
             minimize i into minOdd and
             maximize i into maxOdd and
             when $$ i % 5 == 0 $$
-              sum i into fivesTotal
+              sum i into fivesTotal and
+              collect r into randoms
             end
             and sum i into oddTotal
-          do $$ updateAnalysis([minEven, maxEven, minOdd, maxOdd,
-                                evenTotal, oddTotal, evenNotFoursTotal]) $$
-          finally $$ return [minEven, maxEven, minOdd, maxOdd,
-                             evenTotal, oddTotal, evenNotFoursTotal]; $$
+
+          do $$ updateAnalysis([minEven, maxEven, minOdd,
+                                maxOdd, evenTotal, oddTotal,
+                                evenNotFoursTotal]) $$
+
+          finally $$ writeln("Floats: ", floats); $$
+          finally $$ writeln("Randoms: ", randoms); $$
+
+          finally $$ return [minEven, maxEven, minOdd,
+                             maxOdd, evenTotal, oddTotal,
+                             evenNotFoursTotal]; $$
     });
     writeln("Result: ", result);
 
