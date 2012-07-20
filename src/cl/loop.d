@@ -18,8 +18,6 @@ else {
  * TODO Use range interfaces in Iterators.
  * TODO Add type constraints to make error messages more useful.
  * TODO Fix comments.
- * TODO Fix Finally clause to insert stuff at the loopPost.
- * TODO Find a way to make gensym() global.
  ******************/
 
 string compile(string code) {
@@ -43,8 +41,6 @@ string compile(string code) {
         return result;
     }
 
-    dstring loopResult = "result";      // The result of the loop (if needed).
-//    dstring loopResult = gensym();      // TODO
     dstring loopPre = "";               // Anything that happens before the loop.
     dstring loopHeader = "";            // Header of the loop body.
     dstring loopBody = "";              // Working loop body.
@@ -59,8 +55,6 @@ string compile(string code) {
     uint maximizing = 0x08;             // For Max.
     uint minimizing = 0x10;             // For Min.
 
-    bool returning = false;             // Flag determining if a return statement has been declared.
-
     // Compiles an initializer.
     void compileInit(ref ParseTree decl) {
         switch(decl.ruleName) {
@@ -68,15 +62,14 @@ string compile(string code) {
                  dstring var = strip(decl.capture[0]);
                  dstring value = strip(decl.capture[1]);
 
-                 if(value == "result") loopResult = var;
-                 else loopPre ~= ind(1) ~ "auto " ~ var ~ " = " ~ value ~ ";\n";
+                 loopPre ~= ind(1) ~ "auto " ~ var ~ " = " ~ value ~ ";\n";
             break;
 
             default: assert(0, "Unknown initializer: " ~ to!string(decl.ruleName));
         }
     }
 
-    // Compiles an iterator.
+    // Compiles Iterators:
     void compileIterator(ref ParseTree decl) {
         switch(decl.ruleName) {
             case "While":
@@ -189,7 +182,6 @@ string compile(string code) {
                 loopBody ~= ind(depth+1) ~ var ~ " = " ~ value ~ ";\n";
                 loopBody ~= ind(depth+1) ~ flag ~ " = true;\n";
                 loopBody ~= ind(depth) ~ "}\n";
-
             break;
 
             case "Collect":
@@ -232,7 +224,7 @@ string compile(string code) {
         }
     }
 
-    // Compiles statements.
+    // Compiles statements:
     void compileStatement(ref ParseTree decl, uint depth = 0) {
         switch(decl.ruleName) {
             case "When":
@@ -301,9 +293,8 @@ string compile(string code) {
                  compileStatement(decl, 2);
             break;
 
-            case "Finally": // FIXME
-                 loopPost ~= ind(1) ~ "return " ~ strip(decl.capture[0]) ~ ";\n";
-                 returning = true;
+            case "Finally":
+                 loopPost ~= ind(1) ~ strip(decl.capture[0]) ~ ";\n";
             break;
 
             case "Comment": // Nothing to compile. // FIXME
@@ -314,13 +305,10 @@ string compile(string code) {
     }
 
     // The return value:
-    assert(!(accMask && returning), "Can't return both explicit and implicit values.");
-
-    if(accMask)         loopPost ~= ind(1) ~ "return __accumulator;\n";
-    else if(!returning) loopPost ~= ind(1) ~ "return 0xDEAD_BEEF;\n";
+    if(accMask) loopPost ~= ind(1) ~ "return __accumulator;\n";
 
     // Delegate and type inference magic:
-    dstring result = "auto " ~ loopResult ~ " = (() {\n"
+    dstring result = "{\n"
                    ~ loopPre ~ "\n"
                    ~ ind(1) ~ "for(;;) {\n"
                    ~ loopHeader ~ "\n"
@@ -328,46 +316,44 @@ string compile(string code) {
                    ~ loopFooter
                    ~ ind(1) ~ "}\n"
                    ~ loopPost
-                   ~ "})();";
+                   ~ "}";
 
     return to!string(result);
 }
 
 /*******************************************************************************
- * Conviniece template to make the use cases neat.
+ * Conviniece templates to make use cases neat.
+ *
+ * NOTE Due to the limitations of `mixin' two separate templates for D statements
+ * and D expressions are required:
+ *
+ * ---
+ * import cl.loop;
+ *
+ * mixin(Loop!q{
+ *     for i from 0 to 1
+ *       print "Statement syntax."
+ * });
+ *
+ * auto result = mixin(Loope!q{
+ *     for i from 0 to 1
+ *       return "Expression syntax."
+ * });
+ * ---
  ******************/
 
-mixin template Loop(string code, bool p = false) {
-    enum dcode = compile(code);
+template Loop(string code, bool printDCode = false) {
+    enum Loop = compile(code);
 
-    static if(p) {
-        pragma(msg, dcode);
+    static if(printDCode) {
+        pragma(msg, Loop);
     }
-
-    mixin(dcode);
 }
 
-unittest {
-    import std.stdio;
-    auto array0 = [1, 2, 3, 4, 5];
+template Loope(string code, bool printDCode = false) {
+    enum Loope = "(()" ~ Loop!(code, false) ~ ")()";
 
-    mixin Loop!q{
-        with array1 as result
-        for i in array0
-        collect i
-    };
-
-    assert(array0 == array1);
-
-    mixin Loop!q{
-        with array2 as result
-        with len = $$array0.length$$
-        with foo = 0
-
-        for i from 0 to len
-        do $$foo = array0[i]^^2$$
-        collect foo
-    };
-
-    assert(array2 == [1, 4, 9, 16, 25]);
+    static if(printDCode) {
+        pragma(msg, Loope);
+    }
 }

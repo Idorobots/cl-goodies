@@ -5,31 +5,35 @@ import std.random;
 
 import cl.loop;
 
+/*******************************************************************************
+ * Some Loop Examples
+ *
+ * NOTE CTFE is still an experimental feature and is really resource-hungry.
+ * NOTE Keep that in mind when compiling this file.
+ ******************/
+
 void main(string[] args) {
     args = args[1 .. $];             // Get rid of the process name.
 
     writeln("Iterate args:");
-    mixin Loop!q{
+    mixin(Loop!q{
         for arg in args
            print "Hello ", arg, "!"
         end
-    };
+    });
 
     auto aa = ["foo" : "bar", "bar" : "foo"];
 
     writeln("Iterating a hash:");
-    mixin Loop!q{
-        with aas as result
+    writeln(mixin(Loope!q{
         for k being the keys of aa
         for v being the values of aa
         collect k
         collect v
-    };
-    writeln(aas);
+    }));
 
     writeln("Print and count:");
-    mixin Loop!q{
-        with ifs as result
+    writeln(mixin(Loope!q{
         for i from 0 to 20
         if $$ i % 2 == 0 $$
             print i and
@@ -38,12 +42,10 @@ void main(string[] args) {
             count i
         else
             print "Not %2 nor %3: ", i
-    };
-    writeln(ifs);
+    }));
 
     writeln("Nested stuff:");
-    mixin Loop!q{
-        with res as result
+    writeln(mixin(Loope!q{
         for i from 0 to 10
           when $$ i & 1 $$
             collect i and
@@ -57,55 +59,44 @@ void main(string[] args) {
                 end
             else
               collect 5
-    };
-    writeln(res);
+    }));
 
     writeln("Nested loops:");
-    mixin Loop!q{
-        with loops as result
+    mixin(Loop!q{
         with size = 3
-        for x from 0 to size do $$
-        mixin Loop!q{
-               for y from 0 to size
-               print "x: ", x, " y: ", y
-        } $$
-    };
-    writeln(loops);
+        for x from 0 to size
+          do $$ mixin(Loop!q{
+            for y from 0 to size
+              print "x: ", x, " y: ", y
+          }); $$
+    });
 
     writeln("Multiple counts:");
-    auto max = 23;
-    mixin Loop!q{
-        with counts as result
-        for i from 0 to max
+    auto var = 23;
+    writeln(mixin(Loope!q{
+        for i from 0 to var
             count $$ i % 3 == 0 $$
             count $$ i % 5 == 0 $$
-    };
-    writeln(counts);
+    }));
 
     writeln("Random numbers:");
-    mixin Loop!q{
-        with random as result
+    auto random = mixin(Loope!q{
         for i from 0 to 100
           collect $$uniform(0,100)$$
-    };
-    writeln(random);
+    });
 
-    mixin Loop!q{
-        with stats as result
-
+    mixin(Loop!q{
         for i in random
           counting $$ (i&1) == 0 $$ into evens and
           counting $$ (i&1) == 1 $$ into odds and
           summing i into total and
           maximizing i into max and
           minimizing i into min
-        finally $$[min, max, total, evens, odds]$$
-    };
-    writeln(stats);
+        finally $$ writeln("Stats: ", [min, max, total, evens, odds]) $$
+    });
 
     writeln("Loop test:");
-    mixin Loop!q{
-        with test as result
+    auto result = mixin(Loope!q{
         with evenp = $$ (uint x) => ((x&1) == 0) $$
         with updateAnalysis = $$ (uint[] stats) {
                                    static count = 0;
@@ -128,9 +119,10 @@ void main(string[] args) {
               sum i into fivesTotal
             end
             and sum i into oddTotal
-          do $$ updateAnalysis([minEven, maxEven,
-                                minOdd, maxOdd,
-                                evenTotal, oddTotal,
-                                evenNotFoursTotal]) $$
-    };
+          do $$ updateAnalysis([minEven, maxEven, minOdd, maxOdd,
+                                evenTotal, oddTotal, evenNotFoursTotal]) $$
+          finally $$ return [minEven, maxEven, minOdd, maxOdd,
+                             evenTotal, oddTotal, evenNotFoursTotal]; $$
+    });
+    writeln("Result: ", result);
 }
