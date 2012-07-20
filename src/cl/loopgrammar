@@ -2,64 +2,66 @@
 # Loop grammar used by Pegged.
 ####################
 
-LoopCode   < Init* (Iterator+ Statement+)+ Finally?
-Init       < With
-Iterator   < (While / Repeat / For)
-Statement  < (If / When / Do / Return / Print / Collect / Count / Sum / Min / Max) (:"and" Statement)*
+LoopCode    < Init* (Iterator+ Statement+)+ Finally?
 
-With       < :"with" Variable (:"=" / :"as") Expression
+Init        < With
+Iterator    < (While / Repeat / For)
+Statement   < (Simple / Conditional / Accumulator) (:"and" Statement)?
+Simple      < (Do / Print / Return)
+Conditional < (If / When)
+Accumulator < (Collect / Count / Sum / Min / Max) (:"into" Variable)?
 
-While      < ("while" / "until") Expression
+With        < :"with" Variable (:"=" / :"as") Expression
 
-Repeat     < :"repeat" Expression
+While       < ("while" / "until") Expression
+Repeat      < :"repeat" Expression
+For         < :"for" Variable (In / From / Being)
+In          < (:"in" / :"on" / :"across") Expression
+From        < :"from" Expression ("to" / "above" / "below") Expression
+Being       < :"being" :"the"? Expression :"of" Expression
 
-For        < :"for" Variable (In / From / Being)
-In         < (:"in" / :"on" / :"across") (Variable / String)
-From       < :"from" Expression ("to" / "above" / "below") Expression
-Being      < :"being" :"the"? Expression :"of" Expression
+Do          < (:"doing" / :"do") Expression
+Print       < (:"printing" / :"print") Expression (:',' Expression)*
+Return      < (:"returning" / :"return") Expression
 
-If         < :"if" Expression Statement (:"else" Statement )? :"end"?
-When       < ("when" / "unless") Expression Statement :"end"?
+If          < :"if" Expression Statement (:"else" Statement )? :"end"?
+When        < ("when" / "unless") Expression Statement :"end"?
 
-Print      < (:"printing" / :"print") Expression (:',' Expression)*
-Do         < (:"doing" / :"do") Expression
-Return     < (:"returning" / :"return") Expression
+Collect     < (:"collecting" / :"collect") Expression
+Count       < (:"counting" / :"count") Expression
+Sum         < (:"summing" / :"sum") Expression
+Min         < (:"minimizing" / :"minimize") Expression
+Max         < (:"maximizing" / :"maximize") Expression
 
-Collect    < (:"collecting" / :"collect") Expression (:"into" Variable)?
-Count      < (:"counting" / :"count") Expression (:"into" Variable)?
-Sum        < (:"summing" / :"sum") Expression (:"into" Variable)?
-Min        < (:"minimizing" / :"minimize") Expression (:"into" Variable)?
-Max        < (:"maximizing" / ":maximize") Expression (:"into" Variable)?
+Finally     < :"finally" Expression
 
-Finally    < :"finally" Expression
+Expression  < (Number / String / Variable / DCode)
 
-Expression < (Number / String / Variable / DCode)
+Number      <~ Floating ( ('e' / 'E') )?
+Floating    <~ Integer ('.' Unsigned)?
+Unsigned    <~ [0-9]+ / "0x" [0-9a-fA-F]+
+Integer     <~ Sign? Unsigned
+Sign        <- '-' / '+'
 
-Number     <~ Floating ( ('e' / 'E') )?
-Floating   <~ Integer ('.' Unsigned)?
-Unsigned   <~ [0-9]+ / "0x" [0-9a-fA-F]+
-Integer    <~ Sign? Unsigned
-Sign       <- '-' / '+'
+String      <~ DoubleQuote (!DoubleQuote Char)* DoubleQuote
+Char        <~ BackSlash ( DoubleQuote
+                         / Quote
+                         / BackSlash
+                         / [bfnrt]
+                         / [0-2][0-7][0-7]
+                         / [0-7][0-7]?
+                         / 'x' Hex Hex
+                         / 'u' Hex Hex Hex Hex
+                         / 'U' Hex Hex Hex Hex Hex Hex Hex Hex
+                         )
+            / Anything
+Hex         <~ [0-9a-fA-F]
 
-String     <~ DoubleQuote (!DoubleQuote Char)* DoubleQuote
-Char       <~ BackSlash ( DoubleQuote
-                        / Quote
-                        / BackSlash
-                        / [bfnrt]
-                        / [0-2][0-7][0-7]
-                        / [0-7][0-7]?
-                        / 'x' Hex Hex
-                        / 'u' Hex Hex Hex Hex
-                        / 'U' Hex Hex Hex Hex Hex Hex Hex Hex
-                        )
-              / Anything
-Hex        <~ [0-9a-fA-F]
+Variable    <~ Identifier
 
-Variable   <~ Identifier
+DCode       <~ :DEscape (!DEscape Anything)* :DEscape
+DEscape     < "$$"
 
-DCode      <~ :DEscape (!DEscape Anything)* :DEscape
-DEscape    < "$$"
+Anything    <~ .
 
-Anything     <~ .
-
-Comment      <~ Slash Slash (!'\n' Anything)* '\n'
+Comment     <~ Slash Slash (!'\n' Anything)* '\n'

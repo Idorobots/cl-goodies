@@ -18,6 +18,7 @@ else {
  * TODO Use range interfaces in Iterators.
  * TODO Add type constraints to make error messages more useful.
  * TODO Fix comments.
+ * TODO Fix Finally clause to insert stuff at the loopPost.
  * TODO Find a way to make gensym() global.
  ******************/
 
@@ -51,11 +52,14 @@ string compile(string code) {
     dstring loopPost = "";              // Anything that happens after the loop.
 
     uint accMask = 0;                   // Used for the accumulators.
+
     uint collecting = 0x01;             // For Collect.
     uint counting   = 0x02;             // For Count.
     uint summing    = 0x04;             // For Sum.
-    uint maximizing = 0x08;             // For Extremum.
-    uint minimizing = 0x10;             // For Extremum.
+    uint maximizing = 0x08;             // For Max.
+    uint minimizing = 0x10;             // For Min.
+
+    bool returning = false;             // Flag determining if a return statement has been declared.
 
     // Compiles an initializer.
     void compileInit(ref ParseTree decl) {
@@ -119,8 +123,8 @@ string compile(string code) {
                           }
 
                           dstring index = gensym(var);
-                          dstring max = gensym(var);
                           dstring range = gensym(var);
+                          dstring max = gensym(var);
 
                           loopPre    ~= ind(1) ~ "auto " ~ index ~ " = 0;\n";
                           loopPre    ~= ind(1) ~ "auto " ~ range ~ " = " ~ r  ~ ";\n";
@@ -140,71 +144,91 @@ string compile(string code) {
         }
     }
 
-    // Compiles Accumulator statements: // TODO
+    // Compiles Accumulator statements:
     void compileAccumulator(ref ParseTree decl, uint depth = 0) {
-        dstring value = strip(decl.capture[0]);
+        auto type = decl.children[0];
+        dstring value = strip(type.capture[0]);
         bool hasDest = decl.children.length == 2;
-        dstring var = hasDest ? strip(decl.capture[1])) : gensym("accumulate");
+        dstring var = hasDest ? strip(decl.capture[1]) : "__accumulator";
 
-        switch(decl.ruleName) {
+        switch(type.ruleName) {
             case "Sum":
                  if(accMask & ~summing) assert(0, "Incompatible kinds of Loop value accumulation.");
                  if(!accMask) {
-                     accMask |= summing;
-                     loopPre ~= ind(1) ~ "typeof(" ~ value ~ ") __summing;\n";
+                     if(!hasDest) accMask |= summing;
+                     loopPre ~= ind(1) ~ "typeof(" ~ value ~ ") " ~ var ~ ";\n";
                  }
 
-                 loopBody ~= ind(depth) ~ "__summing += " ~ value ~ ";\n";
+                 loopBody ~= ind(depth) ~ var ~ " += " ~ value ~ ";\n";
             break;
 
             case "Count":
                  if(accMask & ~counting) assert(0, "Incompatible kinds of Loop value accumulation.");
                  if(!accMask) {
-                     accMask |= counting;
-                     loopPre ~= ind(1) ~ "uint __counting;\n";
+                     if(!hasDest) accMask |= counting;
+                     loopPre ~= ind(1) ~ "uint " ~ var ~ " = 0;\n";
                  }
 
-                 loopBody ~= ind(depth) ~ "if(" ~ value ~ ") ++__counting;\n";
+                 loopBody ~= ind(depth) ~ "if(" ~ value ~ ") ++" ~ var ~ ";\n";
             break;
 
             case "Min":
-                // TODO
-
-                loopBody ~= "Nope.";
-            break;
-
             case "Max":
-                // TODO
+                uint mask = type.ruleName == "Min" ? minimizing : maximizing;
+                dstring op = type.ruleName == "Min" ? " < " : " > ";
+                dstring flag = gensym(var);
 
-                loopBody ~= "Nope.";
+                if(accMask & ~mask) assert(0, "Incompatible kinds of Loop value occumulation.");
+                if(!accMask) {
+                    if(!hasDest) accMask |= mask;
+                    loopPre ~= ind(1) ~ "bool " ~ flag ~ " = false;\n";
+                    loopPre ~= ind(1) ~ "typeof(" ~ value ~ ") " ~ var ~ ";\n";
+                }
+
+                loopBody ~= ind(depth) ~ "if(!" ~ flag ~ " || " ~ value ~ op ~ var ~ ") {\n";
+                loopBody ~= ind(depth+1) ~ var ~ " = " ~ value ~ ";\n";
+                loopBody ~= ind(depth+1) ~ flag ~ " = true;\n";
+                loopBody ~= ind(depth) ~ "}\n";
+
             break;
 
             case "Collect":
                  if(accMask & ~collecting) assert(0, "Incompatible kinds of Loop value accumulation.");
                  if(!accMask) {
-                     accMask |= collecting;
-                     loopPre ~= ind(1) ~ "typeof(" ~ value ~ ")[] __collecting;\n";
+                     if(!hasDest) accMask |= collecting;
+                     loopPre ~= ind(1) ~ "typeof(" ~ value ~ ")[] " ~ var ~ ";\n";
                  }
 
-                 loopBody ~= ind(depth) ~ "__collecting ~= " ~ value ~ ";\n";
+                 loopBody ~= ind(depth) ~ var ~ " ~= " ~ value ~ ";\n";
             break;
+
             default: assert(0, "Unknown accumulator: " ~ to!string(decl.ruleName));
         }
     }
 
     // Simple satements that don't interfere with loop structure:
-    dstring compileSimpleStat(ref ParseTree decl) {
+    void compileSimple(ref ParseTree decl, uint depth = 0) {
         dstring value = strip(decl.capture[0]);
 
         switch(decl.ruleName) {
             case "Print":
                  dstring result = "writeln(" ~ value;
-                 foreach(e; decl.capture[1..$]) result ~= ", " ~ e;
-            return result ~ ");\n";
 
-            case "Do":      return value ~ ";\n";
-            case "Return":  return "return " ~ value ~ ";\n";
-            default:        assert(0, "Unknown statement: " ~ to!string(decl.ruleName));
+                 foreach(e; decl.capture[1..$])
+                     result ~= ", " ~ e;
+
+                 loopBody ~= ind(depth) ~ result ~ ");\n";
+            break;
+
+            case "Do":
+                 loopBody ~= ind(depth) ~ value ~ ";\n";
+            break;
+
+            case "Return":
+                 loopBody ~= ind(depth) ~ "return " ~ value ~ ";\n";
+            break;
+
+            default: assert(0, "Unknown statement: " ~ to!string(decl.ruleName));
         }
     }
 
@@ -239,16 +263,11 @@ string compile(string code) {
                  }
             break;
 
-            case "Print":
-            case "Do":
-            case "Return":
-                 loopBody ~= ind(depth) ~ compileSimpleStat(decl);
+            case "Simple":
+                 compileSimple(decl.children[0], depth);
             break;
 
-            case "Collect":
-            case "Count":
-            case "Sum":
-            case "Extremum":
+            case "Accumulator":
                  compileAccumulator(decl, depth);
             break;
 
@@ -258,6 +277,11 @@ string compile(string code) {
                  if(decl.children.length != 1)
                      compileStatement(decl.children[1], depth);
             break;
+
+            case "Conditional":
+                 compileStatement(decl.children[0], depth);
+            break;
+
             default: assert(0, "Unknown statement: " ~ to!string(decl.ruleName));
         }
     }
@@ -265,25 +289,35 @@ string compile(string code) {
     // Code generation starts here:
     foreach(ref decl; o.children) {
         switch(decl.ruleName) {
-            case "Init":      compileInit(decl.children[0]); break;
-            case "Iterator":  compileIterator(decl.children[0]); break;
-            case "Statement": compileStatement(decl.children[0], 2); break;
-            case "Finally":   loopPost ~= ind(1) ~ strip(decl.capture[0]) ~ ";\n"; break;
-            case "Comment":   break; // Nothing to compile.
-            default:          assert(0, "Unrecognized Loop statement: " ~ to!string(decl.ruleName));
+            case "Init":
+                 compileInit(decl.children[0]);
+            break;
+
+            case "Iterator":
+                 compileIterator(decl.children[0]);
+            break;
+
+            case "Statement":
+                 compileStatement(decl, 2);
+            break;
+
+            case "Finally": // FIXME
+                 loopPost ~= ind(1) ~ "return " ~ strip(decl.capture[0]) ~ ";\n";
+                 returning = true;
+            break;
+
+            case "Comment": // Nothing to compile. // FIXME
+            break;
+
+            default: assert(0, "Unrecognized Loop statement: " ~ to!string(decl.ruleName));
         }
     }
 
-    // The return value;
-    dstring returnValue = "0";
+    // The return value:
+    assert(!(accMask && returning), "Can't return both explicit and implicit values.");
 
-    if(accMask & collecting) returnValue = "__collecting";
-    if(accMask & counting)   returnValue = "__counting";
-    if(accMask & summing)    returnValue = "__summing";
-    if(accMask & maximizing) returnValue = "__maximizing";
-    if(accMask & minimizing) returnValue = "__minimizing";
-
-    loopPost ~= ind(1) ~ "return " ~ returnValue ~ ";\n";
+    if(accMask)         loopPost ~= ind(1) ~ "return __accumulator;\n";
+    else if(!returning) loopPost ~= ind(1) ~ "return 0xDEAD_BEEF;\n";
 
     // Delegate and type inference magic:
     dstring result = "auto " ~ loopResult ~ " = (() {\n"
@@ -306,7 +340,9 @@ string compile(string code) {
 mixin template Loop(string code, bool p = false) {
     enum dcode = compile(code);
 
-    static if(p) pragma(msg, dcode);
+    static if(p) {
+        pragma(msg, dcode);
+    }
 
     mixin(dcode);
 }

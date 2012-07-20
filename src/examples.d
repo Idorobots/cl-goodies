@@ -42,22 +42,22 @@ void main(string[] args) {
     writeln(ifs);
 
     writeln("Nested stuff:");
-    mixin Loop!(q{
+    mixin Loop!q{
         with res as result
         for i from 0 to 10
-            when $$ i & 1 $$
-                collect i and
-                collect i and
-                collect i and
-                if $$ i % 3 == 0 $$
-                    collect 3 and
-                    when $$i > 3 $$
-                       if true
-                          collect 3
-                       end
-                else
-                    collect 5
-    }, true);
+          when $$ i & 1 $$
+            collect i and
+            collect i and
+            collect i and
+            if $$ i % 3 == 0 $$
+              collect 3 and
+              when $$i > 3 $$
+                if true
+                  collect 3
+                end
+            else
+              collect 5
+    };
     writeln(res);
 
     writeln("Nested loops:");
@@ -86,20 +86,51 @@ void main(string[] args) {
     mixin Loop!q{
         with random as result
         for i from 0 to 100
-        collect $$uniform(0,100)$$
+          collect $$uniform(0,100)$$
     };
     writeln(random);
 
-    // // TODO
-    // mixin Loop!(q{
-    //     with stats as result
-    //     for i in random
-    //     counting $$ (i&1) == 0 $$ into evens
-    //     counting $$ (i&1) == 1 $$ into odds
-    //     summing i into total
-    //     maximizing i into max
-    //     minimizing i into min
-    //     finally $$return [min, max, total, evens, odds];$$
-    // }, true);
-    // writeln(stats);
+    mixin Loop!q{
+        with stats as result
+
+        for i in random
+          counting $$ (i&1) == 0 $$ into evens and
+          counting $$ (i&1) == 1 $$ into odds and
+          summing i into total and
+          maximizing i into max and
+          minimizing i into min
+        finally $$[min, max, total, evens, odds]$$
+    };
+    writeln(stats);
+
+    writeln("Loop test:");
+    mixin Loop!q{
+        with test as result
+        with evenp = $$ (uint x) => ((x&1) == 0) $$
+        with updateAnalysis = $$ (uint[] stats) {
+                                   static count = 0;
+                                   if(count++ % 10 == 0)
+                                       writeln("Analysis: ", stats);
+                              } $$
+
+        for i from 1 to 500
+          if $$ evenp(i) $$
+            minimize i into minEven and
+            maximize i into maxEven and
+            unless $$ i % 4 == 0 $$
+              sum i into evenNotFoursTotal
+            end
+            and sum i into evenTotal
+          else
+            minimize i into minOdd and
+            maximize i into maxOdd and
+            when $$ i % 5 == 0 $$
+              sum i into fivesTotal
+            end
+            and sum i into oddTotal
+          do $$ updateAnalysis([minEven, maxEven,
+                                minOdd, maxOdd,
+                                evenTotal, oddTotal,
+                                evenNotFoursTotal]) $$
+    };
 }
