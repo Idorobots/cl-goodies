@@ -81,16 +81,17 @@ void main(string[] args) {
 
     writeln("Random numbers:");
     auto random = mixin(Loope!q{
-        for i from 0 to 100
-          collect $$uniform(0,100)$$
+        with max = 500
+        for i from 0 to max
+          collect $$ uniform(0, max) $$
     });
 
     mixin(Loop!q{
         for i in random
-          counting $$ (i&1) == 0 $$ into evens and
-          counting $$ (i&1) == 1 $$ into odds and
-          summing i into total and
-          maximizing i into max and
+          counting $$ (i&1) == 0 $$ into evens
+          counting $$ (i&1) == 1 $$ into odds
+          summing i into total
+          maximizing i into max
           minimizing i into min
         finally $$ writeln("Stats: ", [min, max, total, evens, odds]) $$
     });

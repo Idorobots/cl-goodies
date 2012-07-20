@@ -96,18 +96,24 @@ string compile(string code) {
                           dstring inc = forVariant.capture[1] == "above" ? " -= " : " += ";
                           dstring comp = forVariant.capture[1] == "above" ? " <= " : " >= ";
                           dstring to = strip(forVariant.capture[2]);
-                          bool hasStep = forVariant.children.length == 4;
-                          dstring step = hasStep ? "1" : strip(forVariant.capture[3]);
+                          dstring toSym = gensym(var);
 
+                          bool hasStep = forVariant.children.length == 3;
+                          dstring step = hasStep ? strip(forVariant.capture[3]) : "1";
+
+                          loopPre    ~= ind(1) ~ "auto " ~ toSym ~ " = " ~ to ~ ";\n";
                           loopPre    ~= ind(1) ~ "auto " ~ var ~ " = " ~ from ~ ";\n";
-                          loopHeader ~= ind(2) ~ "if(" ~ var ~ comp ~ to ~ ") break;\n";
+                          loopHeader ~= ind(2) ~ "if(" ~ var ~ comp ~ toSym ~ ") break;\n";
                           loopFooter ~= ind(2) ~ var ~ inc ~ step ~ ";\n";
                      break;
 
                      case "Below":
                           dstring max = strip(forVariant.capture[0]);
-                          loopPre    ~= ind(1) ~ "typeof(" ~ max ~ ") " ~ var ~ ";\n";
-                          loopHeader ~= ind(2) ~ "if(" ~ var ~ " >= " ~ max ~ ") break;\n";
+                          dstring maxSym = gensym(var);
+
+                          loopPre    ~= ind(1) ~ "auto " ~ maxSym ~ " = " ~ max ~ ";\n";
+                          loopPre    ~= ind(1) ~ "typeof(" ~ maxSym ~ ") " ~ var ~ ";\n";
+                          loopHeader ~= ind(2) ~ "if(" ~ var ~ " >= " ~ maxSym ~ ") break;\n";
                           loopFooter ~= ind(2) ~ "++" ~ var ~ ";\n";
                      break;
 
@@ -369,9 +375,9 @@ string compile(string code) {
 template Loop(string code, bool printDCode = false) {
     enum Loop = compile(code);
 
-//    static if(printDCode) {
+    static if(printDCode) {
         pragma(msg, Loop);
-//    }
+    }
 }
 
 template Loope(string code, bool printDCode = false) {
