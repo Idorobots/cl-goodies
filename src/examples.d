@@ -34,14 +34,14 @@ void main(string[] args) {
 
     writeln("Print and count:");
     writeln(mixin(Loope!q{
-        for i from 0 to 20
-        if $$ i % 2 == 0 $$
+        for i from 0 to 20 by $$uniform(1,5)$$
+        if $$ i % 6 == 0 $$
             print i and
             count i
         else if $$ i % 3 == 0 $$
             count i
         else
-            print "Not %2 nor %3: ", i
+            print "Not %6 nor %3: ", i
     }));
 
     writeln("Nested stuff:");
@@ -125,4 +125,12 @@ void main(string[] args) {
                              evenTotal, oddTotal, evenNotFoursTotal]; $$
     });
     writeln("Result: ", result);
+
+    writeln("Predicates:");
+    writeln(mixin(Loope!q{
+        for i in $$[0, 2, 4, 6, 8]$$
+        always $$(i & 1) == 0$$
+        never $$(i & 1) == 1$$
+        thereis $$i > 4$$
+    }));
 }

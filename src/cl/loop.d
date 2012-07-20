@@ -93,13 +93,22 @@ string compile(string code) {
                  switch(forVariant.ruleName) {
                      case "From":
                           dstring from = strip(forVariant.capture[0]);
-                          dstring inc = forVariant.capture[1] == "above" ? "--" : "++";
+                          dstring inc = forVariant.capture[1] == "above" ? " -= " : " += ";
                           dstring comp = forVariant.capture[1] == "above" ? " <= " : " >= ";
                           dstring to = strip(forVariant.capture[2]);
+                          bool hasStep = forVariant.children.length == 4;
+                          dstring step = hasStep ? "1" : strip(forVariant.capture[3]);
 
                           loopPre    ~= ind(1) ~ "auto " ~ var ~ " = " ~ from ~ ";\n";
                           loopHeader ~= ind(2) ~ "if(" ~ var ~ comp ~ to ~ ") break;\n";
-                          loopFooter ~= ind(2) ~ inc ~ var ~ ";\n";
+                          loopFooter ~= ind(2) ~ var ~ inc ~ step ~ ";\n";
+                     break;
+
+                     case "Below":
+                          dstring max = strip(forVariant.capture[0]);
+                          loopPre    ~= ind(1) ~ "typeof(" ~ max ~ ") " ~ var ~ ";\n";
+                          loopHeader ~= ind(2) ~ "if(" ~ var ~ " >= " ~ max ~ ") break;\n";
+                          loopFooter ~= ind(2) ~ "++" ~ var ~ ";\n";
                      break;
 
                      case "Being":
@@ -198,7 +207,7 @@ string compile(string code) {
         }
     }
 
-    // Simple satements that don't interfere with loop structure:
+    // Simple satements:
     void compileSimple(ref ParseTree decl, uint depth = 0) {
         dstring value = strip(decl.capture[0]);
 
@@ -218,6 +227,17 @@ string compile(string code) {
 
             case "Return":
                  loopBody ~= ind(depth) ~ "return " ~ value ~ ";\n";
+            break;
+
+            case "ThereIs":
+                 loopBody ~= ind(depth) ~ "if(" ~ value ~ ") return true;\n";
+            break;
+
+            case "Never":
+            case "Always":
+                 dstring op = decl.ruleName == "Never" ? "" : "!";
+                 loopBody ~= ind(depth) ~ "if(" ~ op ~ "(" ~ value ~ ")) return false;\n";
+                 loopPost ~= ind(1) ~ "return true;\n";
             break;
 
             default: assert(0, "Unknown statement: " ~ to!string(decl.ruleName));
@@ -293,6 +313,10 @@ string compile(string code) {
                  compileStatement(decl, 2);
             break;
 
+            case "Initially":
+                 loopPre ~= ind(1) ~ strip(decl.capture[0]) ~ ";\n";
+            break;
+
             case "Finally":
                  loopPost ~= ind(1) ~ strip(decl.capture[0]) ~ ";\n";
             break;
@@ -345,9 +369,9 @@ string compile(string code) {
 template Loop(string code, bool printDCode = false) {
     enum Loop = compile(code);
 
-    static if(printDCode) {
+//    static if(printDCode) {
         pragma(msg, Loop);
-    }
+//    }
 }
 
 template Loope(string code, bool printDCode = false) {

@@ -2,12 +2,14 @@
 # Loop grammar used by Pegged.
 ####################
 
-LoopCode    < Init* (Iterator+ Statement+)+ Finally?
+LoopCode    < Initially* Init* (Iterator+ Statement+)+ Finally*
+
+Initially   < :"initially" Expression
 
 Init        < With
 Iterator    < (While / Repeat / For)
 Statement   < (Simple / Conditional / Accumulator) (:"and" Statement)?
-Simple      < (Do / Print / Return)
+Simple      < (Do / Print / Return / ThereIs / Never / Always)
 Conditional < (If / When)
 Accumulator < (Collect / Count / Sum / Min / Max) (:"into" Variable)?
 
@@ -15,14 +17,18 @@ With        < :"with" Variable (:"=" / :"as") Expression
 
 While       < ("while" / "until") Expression
 Repeat      < :"repeat" Expression
-For         < :"for" Variable (In / From / Being)
+For         < (:"for" / :"as") Variable (In / From / Being / Below)
 In          < (:"in" / :"on" / :"across") Expression
-From        < :"from" Expression ("to" / "above" / "below") Expression
-Being       < :"being" :"the"? Expression :"of" Expression
+From        < :"from" Expression ("to" / "above" / "below") Expression (:"by" Expression)?
+Being       < :"being" (:"the" / :"each")? Expression :"of" Expression
+Below       < :"below" Expression
 
 Do          < (:"doing" / :"do") Expression
 Print       < (:"printing" / :"print") Expression (:',' Expression)*
 Return      < (:"returning" / :"return") Expression
+ThereIs     < :"thereis" Expression
+Never       < :"never" Expression
+Always      < :"always" Expression
 
 If          < :"if" Expression Statement (:"else" Statement )? :"end"?
 When        < ("when" / "unless") Expression Statement :"end"?
