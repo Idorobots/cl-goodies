@@ -18,6 +18,7 @@ else {
  * TODO Use range interfaces in Iterators.
  * TODO Add type constraints to make error messages more useful.
  * TODO Fix comments.
+ * TODO Default to strings instead of dstrings.
  ******************/
 
 string compile(string code) {
